@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ol-processor/pkg/handlers"
+	"github.com/jainnidhi703/ol-processor/pkg/handlers"
 )
 
 func main() {

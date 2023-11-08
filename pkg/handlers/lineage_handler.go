@@ -8,16 +8,16 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ol-processor/pkg/models"
+	"github.com/jainnidhi703/ol-processor/pkg/models"
 
 	"github.com/dominikbraun/graph"
 	"github.com/dominikbraun/graph/draw"
 )
 
-var cache = make(map[string]*graph.Graph[string, GraphData])
+var cache = make(map[string]*graph.Graph[string, models.GraphData])
 
-func postLineage(c *gin.Context) {
-	var event Event
+func PostLineage(c *gin.Context) {
+	var event models.Event
 
 	// Read the JSON data from the request body
 	data, err := ioutil.ReadAll(c.Request.Body)
@@ -54,7 +54,7 @@ func postLineage(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "JSON data processed successfully"})
 }
 
-func getLineageGraph(c *gin.Context) {
+func GetLineageGraph(c *gin.Context) {
 	dagName := c.Param("dag")
 	// dagName := "lineage_combine"
 	if val, ok := cache[dagName]; ok {
@@ -68,26 +68,26 @@ func getLineageGraph(c *gin.Context) {
 
 }
 
-func getDagName(event Event) string {
+func getDagName(event models.Event) string {
 	return strings.Split(event.Job.Name, ".")[0]
 }
 
-func graphDataHash(data GraphData) string {
+func graphDataHash(data models.GraphData) string {
 	return data.Name
 }
 
-func buildGraph(event Event, g graph.Graph[string, GraphData]) graph.Graph[string, GraphData] {
+func buildGraph(event models.Event, g graph.Graph[string, models.GraphData]) graph.Graph[string, models.GraphData] {
 
 	job := event.Job
-	_ = g.AddVertex(GraphData{Type: "job", Info: job.Facets.SQL.Query, Name: job.Name})
+	_ = g.AddVertex(models.GraphData{Type: "job", Info: job.Facets.SQL.Query, Name: job.Name})
 
 	for _, input := range event.Inputs {
-		_ = g.AddVertex(GraphData{Type: "datasource", Info: input.Facets.DataSource.Name, Name: input.Name})
+		_ = g.AddVertex(models.GraphData{Type: "datasource", Info: input.Facets.DataSource.Name, Name: input.Name})
 		_ = g.AddEdge(input.Name, job.Name)
 	}
 
 	for _, output := range event.Outputs {
-		_ = g.AddVertex(GraphData{Type: "datasource", Info: output.Facets.DataSource.Name, Name: output.Name})
+		_ = g.AddVertex(models.GraphData{Type: "datasource", Info: output.Facets.DataSource.Name, Name: output.Name})
 		_ = g.AddEdge(job.Name, output.Name)
 	}
 	return g
