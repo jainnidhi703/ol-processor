@@ -88,10 +88,23 @@ func buildGraph(event models.Event, g graph.Graph[string, models.GraphData]) gra
 			// Vertex doesnt exist, so create a new vertex with deleted status
 			if err == nil {
 				// Get all edges, remove them and re add
-				_ = g.RemoveEdge(graphDataHash(jobGraphData), graphDataHash(outputGraphData))
+				var filteredEdges []graph.Edge[string]
+				edges, _ := g.Edges()
+				for _, edge := range edges {
+					if edge.Target == graphDataHash(outputGraphData) {
+						filteredEdges = append(filteredEdges, edge)
+						_ = g.RemoveEdge(edge.Source, graphDataHash(outputGraphData))
+					}
+				}
 				_ = g.RemoveVertex(graphDataHash(outputGraphData))
+				// Adding new colored Vertex
+				_ = g.AddVertex(outputGraphData, graph.VertexAttributes(vertexAttributesDeleted))
+				for _, edge := range filteredEdges {
+					_ = g.AddEdge(edge.Source, graphDataHash(outputGraphData))
+				}
+			} else {
+				_ = g.AddVertex(outputGraphData, graph.VertexAttributes(vertexAttributesDeleted))
 			}
-			_ = g.AddVertex(outputGraphData, graph.VertexAttributes(vertexAttributesDeleted))
 		} else {
 			_ = g.AddVertex(outputGraphData, vertexAttr)
 		}
