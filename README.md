@@ -1,5 +1,5 @@
 # OpenLineage Event Processor
-A `backend` that listens to OpenLineage events and constructs lineage graph for respective Airflow DAGs.
+A `backend` that listens to OpenLineage events and constructs lineage graph for Airflow DAGs.
 
 ## Rollout Requirements
 
@@ -9,7 +9,7 @@ A `backend` that listens to OpenLineage events and constructs lineage graph for 
 
 ## Running the Web Server
 
-To build the entire project run:
+To build the entire project and run:
 
 Local:
 ```bash
@@ -20,7 +20,7 @@ Docker:
 ```bash
 $ docker-compose up --build
 ```
-> **Note:** Add the configuration settings in `proxy.yml` of OpenLineage Proxy Server. Add respective App ports for Open Lineage and HTTP URL to the Web Applications URL.
+> **Note:** Add the configuration settings in `proxy.yml` of OpenLineage Proxy Server. Add OpenLineage proxy Server ports and HTTP forwarding URL to the Go web service.
 ```bash
 server:
   applicationConnectors:
@@ -46,11 +46,11 @@ proxy:
 
 ## Approach
 
-* Start an Airflow Openlineage instance, using [Airflow with OpenLineage Installed - Sample Docker with DAGS](https://github.com/jainnidhi703/airflow-ol).
-* Once the events start emitting, forward them to [OpenLineage Proxy](https://github.com/OpenLineage/OpenLineage/tree/main/proxy/backend#openlineage-proxy-backend). OpenLineage proxy has 3 default output modes: console, HTTP, and Kafka. In the current approach, we are directly forwarding it through the HTTP mode, using a POST request to `http://localhost:3000/api/v1/lineage` with the Lineage event body. We could have also published them to Kafka and then consumed them from Kafka asynchronously. Also in the case of Kafka, we can start reading events from the previous offset which were not consumed. The current web server will only start processing Lineage events from the time instance the web server was started.
-NOTE: Define the proxy.yml configuration for OpenLineage.
-* All the events from post requests are aggregated in a [Graph](https://github.com/dominikbraun/graph) format, building edges between every input data source -> job and job -> output data source. One graph is built per DAG and the DAG name to the graph is cached in-memory. We can use a graph DB as well to store the graph and for more query flexibility. Graph DB would allowing querying by vertices, making it simpler to query by a job name as well as dataset name.
-* The graph for a particular DAG can be queried via the URL: `/api/get/graph/:dag`. If the dag name provided is not available in the cache, then the API would respond 400 with ERROR: `Invalid Dag Name`. If the DAG name is valid, then the API responds with a PNG Image of Graph. Each Graph node consists of the datasource/job name and the type i.e. datasource or job
+* Start an Airflow Openlineage instance, using [Airflow with OpenLineage Installed](https://github.com/jainnidhi703/airflow-ol).
+* Once the events start emitting, forward them to [OpenLineage Proxy](https://github.com/OpenLineage/OpenLineage/tree/main/proxy/backend#openlineage-proxy-backend). OpenLineage proxy has 3 default output modes: console, HTTP, and Kafka. In the current approach, we are directly forwarding it through the HTTP mode, using a POST request to `http://localhost:3000/api/v1/lineage` with the Lineage event body. We could have also published them to Kafka and then consumed them from Kafka asynchronously. Also in the case of Kafka, we can start reading events from the previous offset which were not consumed. But the current web server will only start processing Lineage events from the time instance the web server was started.
+NOTE: Define the proxy.yml as mentioned above configuration for OpenLineage.
+* All the events from post requests are aggregated in a [Graph](https://github.com/dominikbraun/graph) format, building edges between every `input data source -> job` and `job -> output data source`. One graph is built per DAG and all the DAG names and graphs are cached in memory, in a Map. We can use a graph DB as well to store the graph for more query flexibility. Graph DB would allow querying by vertices, making it simpler to query by a job or dataset name.
+* In the Go web service the graph for a particular DAG can be queried via the URL: `/api/get/graph/:dag`. If the dag name provided is not available in the cache, then the API would respond 400 with ERROR: `Invalid Dag Name`. If the DAG name is valid/available in the cache, then it will respond PNG Image of the Graph. Each Graph node consists of the datasource/job name and the type i.e. datasource or job
 * The Lineage graph for lineage_combine from the sample dags looks as follows:
   ![lineage_combine](examples/images/lineage_combine.png)
 * The Lineage graph for lineage_reporting from the sample dags looks as follows, the adoption_reporting_long datasource is in red because it was deleted in the last job:
