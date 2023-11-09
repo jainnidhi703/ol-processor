@@ -11,5 +11,5 @@ func main() {
 	router.POST("/api/v1/lineage", handlers.PostLineage)
 	router.GET("/api/get/graph/:dag", handlers.GetLineageGraph)
 
-	router.Run("localhost:3000")
+	router.Run("0.0.0.0:3000")
 }
