@@ -13,6 +13,16 @@ import (
 
 var Cache = make(map[string]*graph.Graph[string, models.GraphData])
 
+var vertexAttributes = map[string]string{
+	"colorscheme": "blues3",
+	"style":       "filled",
+	"color":       "2",
+	"fillcolor":   "1",
+	"shape":       "rectangle",
+}
+
+var edgeAttributes = map[string]string{}
+
 func ProcessEvent(event models.Event) {
 	dagName := getDagName(event)
 	g := graph.New(graphDataHash, graph.Directed())
@@ -44,21 +54,26 @@ func getDagName(event models.Event) string {
 }
 
 func graphDataHash(data models.GraphData) string {
-	return data.Name
+	return data.Name + " | " + data.Type
 }
 
 func buildGraph(event models.Event, g graph.Graph[string, models.GraphData]) graph.Graph[string, models.GraphData] {
+	vertexAttr := graph.VertexAttributes(vertexAttributes)
+	edgeAtrr := graph.EdgeAttributes(edgeAttributes)
 	job := event.Job
-	_ = g.AddVertex(models.GraphData{Type: "job", Info: job.Facets.SQL.Query, Name: job.Name})
+	jobGraphData := models.GraphData{Type: "job", Info: job.Facets.SQL.Query, Name: job.Name}
+	_ = g.AddVertex(jobGraphData, vertexAttr)
 
 	for _, input := range event.Inputs {
-		_ = g.AddVertex(models.GraphData{Type: "datasource", Info: input.Facets.DataSource.Name, Name: input.Name})
-		_ = g.AddEdge(input.Name, job.Name)
+		inputGraphData := models.GraphData{Type: "datasource", Info: input.Facets.DataSource.Name, Name: input.Name}
+		_ = g.AddVertex(inputGraphData, vertexAttr)
+		_ = g.AddEdge(graphDataHash(inputGraphData), graphDataHash(jobGraphData), edgeAtrr)
 	}
 
 	for _, output := range event.Outputs {
-		_ = g.AddVertex(models.GraphData{Type: "datasource", Info: output.Facets.DataSource.Name, Name: output.Name})
-		_ = g.AddEdge(job.Name, output.Name)
+		outputGraphData := models.GraphData{Type: "datasource", Info: output.Facets.DataSource.Name, Name: output.Name}
+		_ = g.AddVertex(outputGraphData, vertexAttr)
+		_ = g.AddEdge(graphDataHash(jobGraphData), graphDataHash(outputGraphData), edgeAtrr)
 	}
 	return g
 }

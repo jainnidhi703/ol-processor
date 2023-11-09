@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,8 @@ func PostLineage(c *gin.Context) {
 	var event models.Event
 
 	data, err := io.ReadAll(c.Request.Body)
+	fmt.Printf("Lineage event: %s\n", data)
+
 	if err != nil {
 		c.JSON(400, gin.H{"error": "Failed to read request body"})
 		return
