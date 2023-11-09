@@ -21,6 +21,14 @@ var vertexAttributes = map[string]string{
 	"shape":       "rectangle",
 }
 
+var vertexAttributesDeleted = map[string]string{
+	"colorscheme": "reds3",
+	"style":       "filled",
+	"color":       "2",
+	"fillcolor":   "1",
+	"shape":       "rectangle",
+}
+
 var edgeAttributes = map[string]string{}
 
 func ProcessEvent(event models.Event) {
@@ -64,6 +72,9 @@ func buildGraph(event models.Event, g graph.Graph[string, models.GraphData]) gra
 	jobGraphData := models.GraphData{Type: "job", Info: job.Facets.SQL.Query, Name: job.Name}
 	_ = g.AddVertex(jobGraphData, vertexAttr)
 
+	// Check if the query contains sql drop syntax
+	isSQLDelete := checkSQLDropTable(jobGraphData.Info)
+
 	for _, input := range event.Inputs {
 		inputGraphData := models.GraphData{Type: "datasource", Info: input.Facets.DataSource.Name, Name: input.Name}
 		_ = g.AddVertex(inputGraphData, vertexAttr)
@@ -72,8 +83,26 @@ func buildGraph(event models.Event, g graph.Graph[string, models.GraphData]) gra
 
 	for _, output := range event.Outputs {
 		outputGraphData := models.GraphData{Type: "datasource", Info: output.Facets.DataSource.Name, Name: output.Name}
-		_ = g.AddVertex(outputGraphData, vertexAttr)
+		if isSQLDelete {
+			_, err := g.Vertex(graphDataHash(outputGraphData))
+			// Vertex doesnt exist, so create a new vertex with deleted status
+			if err == nil {
+				// Get all edges, remove them and re add
+				_ = g.RemoveEdge(graphDataHash(jobGraphData), graphDataHash(outputGraphData))
+				_ = g.RemoveVertex(graphDataHash(outputGraphData))
+			}
+			_ = g.AddVertex(outputGraphData, graph.VertexAttributes(vertexAttributesDeleted))
+		} else {
+			_ = g.AddVertex(outputGraphData, vertexAttr)
+		}
 		_ = g.AddEdge(graphDataHash(jobGraphData), graphDataHash(outputGraphData), edgeAtrr)
 	}
 	return g
+}
+
+func checkSQLDropTable(query string) bool {
+	lowercaseQuery := strings.ToLower(query)
+
+	// Check if the query contains "drop table"
+	return strings.Index(lowercaseQuery, "drop table") >= 0
 }
